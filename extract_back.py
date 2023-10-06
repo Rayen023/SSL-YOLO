@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from ultralytics import YOLO
 
-trained_layers = 11  # specify how many pretrained layers to load
+trained_layers = 11  
 
 trained_model = YOLO("/gpfs/scratch/rayen/YOLOv8/yolov8l.pt")
 trained_model_children_list = list(trained_model.model.children())

@@ -15,40 +15,30 @@ import tqdm
 
 print(torch.cuda.is_available())
 
-# 1. Subclass torch.utils.data.Dataset
 class ImageFolderCustom(Dataset):
     
-    # 2. Initialize with a targ_dir and transform (optional) parameter
+    
     def __init__(self, targ_dir: str, transform=None) -> None:
-        
-        # 3. Create class attributes
-        # Get all image paths
-        self.paths = list(sorted(Path(targ_dir).glob("*.jpg"))) # note: you'd have to update this if you've got .png's or .jpeg's
-        # Setup transforms
+        self.paths = list(sorted(Path(targ_dir).glob("*.jpg"))) 
         self.transform = transform
 
-    # 4. Make function to load images
     def load_image(self, index: int) -> Image.Image:
         "Opens an image via a path and returns it."
         image_path = self.paths[index]
         return Image.open(image_path) 
     
-    # 5. Overwrite the __len__() method (optional but recommended for subclasses of torch.utils.data.Dataset)
     def __len__(self) -> int:
         "Returns the total number of samples."
         return len(self.paths)
     
     
-    # 6. Overwrite the __getitem__() method (required for subclasses of torch.utils.data.Dataset)
     def __getitem__(self, index: int):
         "Returns one sample of data, data and label (X, y)."
         img = self.load_image(index) # load image
 
-        # Convert image to RGB if not
         if img.mode != "RGB":
             img = img.convert("RGB")
 
-        # Transform if necessary
         if self.transform:
             img = self.transform(img)
 
@@ -56,25 +46,21 @@ class ImageFolderCustom(Dataset):
 
 
 data_transform = T.Compose([
-    # Resize the images to 64x64
     T.Resize(size=(544, 544)),
-    # Flip the images randomly on the horizontal
-    #transforms.RandomHorizontalFlip(p=0.5), # p = probability of flip, 0.5 = 50% chance
-    # Turn the image into a torch.Tensor
-    T.ToTensor() # this also converts all pixel values from 0 to 255 to be between 0.0 and 1.0 
+    T.ToTensor() # convert all pixel values from 0 to 255 to be between 0.0 and 1.0 
 ])
 root = "/gpfs/scratch/rayen/10-shot_coco/coco/"
 #root = "/gpfs/scratch/rayen/YOLOv8/wood_dataset/"
 train_dir = os.path.join(root, "train2017/")
 print(f"train_dir: {train_dir}")
 train_data = ImageFolderCustom(targ_dir=train_dir, # target folder of images
-                                  transform=data_transform, #data_transform, # transforms to perform on data (images)
+                                  transform=data_transform,
                                     )
 print(f"Length of train_data: {len(train_data)}")
 train_dataloader = DataLoader(dataset=train_data, 
-                              batch_size=102, #how many samples per batch?
-                              num_workers=20, # how many subprocesses to use for data loading? (higher = more)
-                              shuffle=True) # shuffle the data?
+                              batch_size=102, 
+                              num_workers=20, 
+                              shuffle=True) 
 
 print(f"Length of train_dataloader: {len(train_dataloader)}")
 
@@ -94,7 +80,6 @@ def plot_imgs(batch_imgs: torch.Tensor) -> None:
         ax.imshow(img.permute(1, 2, 0)) # permute to (height, width, channels)
         ax.axis("off")
 
-    # If the number of images in the batch does not perfectly fill the grid, remove the empty subplots
     if batch_size < rows * cols:
         for ax in axs.flat[batch_size:]:
             ax.remove()
@@ -105,21 +90,12 @@ def plot_imgs(batch_imgs: torch.Tensor) -> None:
 #plot_imgs(imgs)
 
 
-# Extrating Backbone
-trained_layers = 11  # specify how many pretrained layers to load
+trained_layers = 11 
 
 model = YOLO("yolov8l.yaml")  # build a new model from scratch
 
 model_children_list = list(model.model.children())
 backbone = model_children_list[0][:trained_layers]
-
-
-# Plot torch model
-#from torchviz import make_dot
-#yhat = backbone(imgs ) # Give dummy batch to forward().
-#make_dot(yhat, params=dict(list(backbone.named_parameters()))).render("rnn_torchviz", format="png")
-#print(f"yhat shape : {yhat.shape}")
-
 
 
 augmentation = T.Compose([
@@ -129,8 +105,6 @@ augmentation = T.Compose([
     T.RandomAffine(degrees=0, translate=(0, 0.1)),
     T.GaussianBlur(kernel_size=(9, 9)),
 ])
-
-
 
 
 
@@ -190,7 +164,7 @@ from pytorch_metric_learning.losses import NTXentLoss
 loss_func = NTXentLoss(temperature=0.25)
 
 # higher batch sizes return better results usually from 256 to 8192 etc
-# exemple : for batch size 1024, we get 1022 negative samples to model contrast against within a batch + our poisitive pair
+# for batch size 1024, we get 1022 negative samples to model contrast against within a batch + our poisitive pair
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
