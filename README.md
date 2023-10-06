@@ -39,5 +39,5 @@ It's advised to utilize a larger batch size to increase the number of negative s
 A greater number of epochs is also beneficial.
   
 - **Execute `fine_tune.py` Script for Fine-tuning on the 10-shot Dataset.**: 
-After the necessary adjustments to "ultralytics/yolo/engine/trainer.py", the solution will load the pretrained backbone's weights into the YOLOv8 model and freeze them. The model will then train on the 10-shot dataset.
+After the necessary adjustments to `ultralytics/yolo/engine/trainer.py`, the solution will load the pretrained backbone's weights into the YOLOv8 model and freeze them. The model will then train on the 10-shot dataset.
 
