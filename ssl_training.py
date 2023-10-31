@@ -13,8 +13,6 @@ import numpy as np
 import tqdm
 
 
-print(torch.cuda.is_available())
-
 class ImageFolderCustom(Dataset):
     
     
@@ -46,19 +44,20 @@ class ImageFolderCustom(Dataset):
 
 
 data_transform = T.Compose([
-    T.Resize(size=(544, 544)),
+    T.Resize(size=(244, 244)),
     T.ToTensor() # convert all pixel values from 0 to 255 to be between 0.0 and 1.0 
 ])
-root = "/gpfs/scratch/rayen/10-shot_coco/coco/"
-#root = "/gpfs/scratch/rayen/YOLOv8/wood_dataset/"
-train_dir = os.path.join(root, "train2017/")
+
+root = "/gpfs/scratch/rayen/datasets/steel-common-aug/images/"
+train_dir = os.path.join(root, "train/")
 print(f"train_dir: {train_dir}")
-train_data = ImageFolderCustom(targ_dir=train_dir, # target folder of images
+
+train_data = ImageFolderCustom(targ_dir=train_dir, 
                                   transform=data_transform,
                                     )
 print(f"Length of train_data: {len(train_data)}")
 train_dataloader = DataLoader(dataset=train_data, 
-                              batch_size=102, 
+                              batch_size=156, 
                               num_workers=20, 
                               shuffle=True) 
 
@@ -125,8 +124,8 @@ augmentation = T.Compose([
 
 
 # Defining Model
-class Model(nn.Module):
-    def __init__(self, k=20, aggr='max'):
+class SimYOLOv8(nn.Module):
+    def __init__(self):
         super().__init__()
         # Feature extraction
         self.backbone = backbone
@@ -169,7 +168,8 @@ loss_func = NTXentLoss(temperature=0.25)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
 assert str(device) == 'cuda' 
-model = Model().to(device)
+model = SimYOLOv8()
+model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
@@ -193,7 +193,7 @@ def train():
     return total_loss / len(train_data)  
 
 
-for epoch in range(1, 40):
+for epoch in range(1, 300):
     loss = train()
     print(f'Epoch {epoch:03d}, Loss: {loss:.4f}')
     scheduler.step()
@@ -210,7 +210,12 @@ head_layers = model_children_list[0][trained_layers:]
 full_state_dict = {**backbone.state_dict(), **head_layers.state_dict()}
 full_state_dict = {f'model.{k}': v for k, v in full_state_dict.items()}
 
-torch.save(full_state_dict, "yolov8l_back_coco.pt")
+torch.save(full_state_dict, "yolov8l_back_steel.pt")
 
 print("pretrained model saved")
 
+
+model = YOLO("yolov8l.yaml") 
+
+
+model.train(data="/gpfs/scratch/rayen/datasets/steel-fs-aug/neu_det.yaml", epochs=300, batch=64, imgsz=224, device=0, pretrained = 'yolov8l_back_steel.pt')
