@@ -5,13 +5,27 @@ from ultralytics import YOLO
 from PIL import Image
 from pathlib import Path
 
+import albumentations as A
+from pytorch_metric_learning.losses import NTXentLoss
+
+import torchvision
+torchvision.disable_beta_transforms_warning()
+
+from torchvision.transforms import v2
 import os
 from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms as T
+#from torchvision import transforms as T
 import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
+
+
+batch_size = 180
+num_epochs = 1000
+img_size = 224
+
+print(f'batch_size : {batch_size} num_epochs : {num_epochs} img_size : {img_size}')
 
 class ImageFolderCustom(Dataset):
     
@@ -43,51 +57,32 @@ class ImageFolderCustom(Dataset):
         return img
 
 
-data_transform = T.Compose([
-    T.Resize(size=(244, 244)),
-    T.ToTensor() # convert all pixel values from 0 to 255 to be between 0.0 and 1.0 
+data_transform = v2.Compose([
+    v2.Resize(size=(img_size, img_size)),
+    v2.ToImageTensor(),
+    v2.ConvertImageDtype(dtype = torch.uint8),
 ])
 
 root = "/gpfs/scratch/rayen/datasets/steel-common-aug/images/"
 train_dir = os.path.join(root, "train/")
 print(f"train_dir: {train_dir}")
 
-train_data = ImageFolderCustom(targ_dir=train_dir, 
-                                  transform=data_transform,
-                                    )
-print(f"Length of train_data: {len(train_data)}")
-train_dataloader = DataLoader(dataset=train_data, 
-                              batch_size=156, 
-                              num_workers=20, 
-                              shuffle=True) 
+train_data = ImageFolderCustom(
+    targ_dir=train_dir,
+    transform=data_transform,
+    )
 
+print(f"Length of train_data: {len(train_data)}")
+
+train_dataloader = DataLoader(
+    dataset=train_data, 
+    batch_size=batch_size, 
+    num_workers=20, 
+    shuffle=True
+    ) 
 print(f"Length of train_dataloader: {len(train_dataloader)}")
 
 imgs = next(iter(train_dataloader))
-#print(f"Image shape: {imgs.shape}") # (batch_size, channels, height, width)
-
-def plot_imgs(batch_imgs: torch.Tensor) -> None:
-    "Plots all images in a batch."
-    batch_size = batch_imgs.shape[0]
-    rows = int(np.sqrt(batch_size))
-    cols = int(np.ceil(batch_size / rows))
-    
-    fig, axs = plt.subplots(rows, cols, figsize=(15, 15))
-
-    for i, img in enumerate(batch_imgs):
-        ax = axs[i // cols, i % cols]
-        ax.imshow(img.permute(1, 2, 0)) # permute to (height, width, channels)
-        ax.axis("off")
-
-    if batch_size < rows * cols:
-        for ax in axs.flat[batch_size:]:
-            ax.remove()
-    
-    plt.tight_layout()
-    plt.show()
-
-#plot_imgs(imgs)
-
 
 trained_layers = 11 
 
@@ -97,31 +92,32 @@ model_children_list = list(model.model.children())
 backbone = model_children_list[0][:trained_layers]
 
 
-augmentation = T.Compose([
-    T.RandomResizedCrop(size=224, scale=(0.08, 1.0)),
-    T.ColorJitter(brightness=0.2, contrast=0.2),
-    T.RandomRotation(degrees=90),
-    T.RandomAffine(degrees=0, translate=(0, 0.1)),
-    T.GaussianBlur(kernel_size=(9, 9)),
+augmentation = v2.Compose([
+    v2.RandomResizedCrop(size=img_size, scale=(0.08, 1.0)),
+    #v2.RandomEqualize(p=1.0),
+    torchvision.transforms.functional.equalize,
+    v2.ColorJitter(brightness=0.2, contrast=0.2),
+    v2.RandomRotation(degrees=90),
+    v2.RandomAffine(degrees=0, translate=(0, 0.1)),
+    v2.GaussianBlur(kernel_size=(9, 9)),
+    v2.ConvertImageDtype(),
 ])
 
-
-
-"""augmentation = T.Compose([
-    # Add color jitter
-    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-    # Randomly change the brightness, contrast and saturation
-    T.RandomApply([T.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)], p=0.8),
-    # Randomly convert to grayscale
-    T.RandomGrayscale(p=0.1),
-    # Add Gaussian Blur
-    T.GaussianBlur(kernel_size=(9, 9)),  # assuming image size is 224
-    # Rotate the image by a few degrees
-    T.RandomRotation(degrees=15),
-    # Random horizontal flipping
-    T.RandomHorizontalFlip(p=0.5),
+"""augmentation = v2.Compose([
+    v2.RandomResizedCrop(size=(img_size, img_size) , antialias = True),  # Or Resize(antialias=True)
+    v2.RandomRotation(degrees=90),
+    v2.RandomEqualize(p=0.8),
+    v2.GaussianBlur(kernel_size=(9, 9)),
 ])"""
 
+"""albumentations_transform = A.Compose([
+    A.Rotate(limit=90, p=1.0),
+    A.CLAHE(p=1.0),
+    A.RandomBrightnessContrast(p=0.5),
+    A.GaussNoise(var_limit=(10.0, 50.0), p=0.5),
+    A.ShiftScaleRotate(shift_limit_y=0.1, scale_limit=0, rotate_limit=0, p=1.0)
+])
+"""
 
 # Defining Model
 class SimYOLOv8(nn.Module):
@@ -159,24 +155,24 @@ class SimYOLOv8(nn.Module):
 
     
 # InfoNCE Noise-Contrastive Estimation
-from pytorch_metric_learning.losses import NTXentLoss
 loss_func = NTXentLoss(temperature=0.25)
 
 # higher batch sizes return better results usually from 256 to 8192 etc
 # for batch size 1024, we get 1022 negative samples to model contrast against within a batch + our poisitive pair
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Device: {device}")
+
 assert str(device) == 'cuda' 
 model = SimYOLOv8()
 model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
-def train():
+
+for epoch in range(num_epochs):
     model.train()
     total_loss = 0
-    for _, data in enumerate(tqdm.tqdm(train_dataloader)):
+    for _, data in enumerate(train_dataloader):
         data = data.to(device)
         optimizer.zero_grad()
         # Get data representations
@@ -190,12 +186,9 @@ def train():
         loss.backward()
         total_loss += loss.item() * data.size(0)  
         optimizer.step()
-    return total_loss / len(train_data)  
 
-
-for epoch in range(1, 300):
-    loss = train()
-    print(f'Epoch {epoch:03d}, Loss: {loss:.4f}')
+    loss = total_loss / len(train_data) 
+    print(f'Epoch {epoch:03d} / {num_epochs}, Loss: {loss:.4f}')
     scheduler.step()
     
     
@@ -212,10 +205,7 @@ full_state_dict = {f'model.{k}': v for k, v in full_state_dict.items()}
 
 torch.save(full_state_dict, "yolov8l_back_steel.pt")
 
-print("pretrained model saved")
-
 
 model = YOLO("yolov8l.yaml") 
-
 
 model.train(data="/gpfs/scratch/rayen/datasets/steel-fs-aug/neu_det.yaml", epochs=300, batch=64, imgsz=224, device=0, pretrained = 'yolov8l_back_steel.pt')

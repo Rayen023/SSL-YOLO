@@ -1,3 +1,4 @@
+albumentations
 certifi==2023.5.7
 charset_normalizer==3.1.0+computecanada
 click==8.1.3+computecanada
@@ -15,7 +16,6 @@ markdown_it_py==3.0.0+computecanada
 matplotlib==3.7.0+computecanada
 mdurl==0.1.2+computecanada
 numpy==1.24.2+computecanada
-opencv-python==4.5.1.48+computecanada
 packaging==23.1+computecanada
 pandas==1.5.3+computecanada
 Pillow==9.5.0+computecanada
@@ -30,7 +30,6 @@ pytz==2023.3+computecanada
 PyYAML==6.0+computecanada
 requests==2.31.0
 rich==13.4.2+computecanada
-sahi==0.11.14
 scikit_learn==1.2.1+computecanada
 scipy==1.10.1+computecanada
 seaborn==0.12.2+computecanada
@@ -39,10 +38,8 @@ six==1.16.0+computecanada
 termcolor==2.3.0+computecanada
 terminaltables==3.1.10+computecanada
 threadpoolctl==3.2.0+computecanada
-torch==1.13.1+computecanada
-torchview==0.2.6
-torchvision==0.14.1+computecanada
-torchviz==0.0.2
+torch==2.0.1+computecanada
+torchvision==0.15.2+computecanada
 tqdm==4.65.0+computecanada
 typing_extensions==4.5.0+computecanada
 urllib3==2.0.3
