@@ -25,10 +25,10 @@ from pytorch_metric_learning.losses import NTXentLoss
 # DATASET PATHS
 # --------------------------------------
 # Self-supervised dataset: contains non-annotated images for contrastive learning
-SSL_TRAIN_DIR = "/gpfs/scratch/rayen/datasets/steel-common-aug/images/train/"
+SSL_TRAIN_DIR = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-common-aug/images/train"
 
 # Object detection dataset: contains annotated images in YOLOv5 format
-DET_DATASET_PATH = "/gpfs/scratch/rayen/datasets/steel-fs-aug/neu_det.yaml"
+DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-fs-aug/neu_det.yaml"
 
 # --------------------------------------
 # SHARED MODEL PARAMETERS
@@ -42,7 +42,7 @@ BACKBONE_LAYERS = 11      # Number of backbone layers to train
 # --------------------------------------
 # SELF-SUPERVISED LEARNING PARAMETERS
 # --------------------------------------
-SSL_BATCH_SIZE = 180
+SSL_BATCH_SIZE = 120
 SSL_NUM_EPOCHS = 1000
 SSL_NUM_WORKERS = 20
 SSL_LEARNING_RATE = 0.001
@@ -98,7 +98,7 @@ class ImageFolderCustom(Dataset):
     """Custom dataset for loading images from a directory"""
     
     def __init__(self, targ_dir: str, transform=None) -> None:
-        self.paths = list(sorted(Path(targ_dir).glob("*.jpg"))) 
+        self.paths = list(sorted(Path(targ_dir).glob("*.jpg"))) # Adjust for other image formats
         self.transform = transform
 
     def load_image(self, index: int) -> Image.Image:
