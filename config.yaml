@@ -1,0 +1,37 @@
+# SSL-YOLO Configuration
+
+# Dataset Paths
+# --------------------------------------
+# Self-supervised dataset: contains non-annotated images for contrastive learning
+# Object detection dataset: contains annotated images in YOLOv5 format
+datasets:
+  ssl_train_dir: "/path/to/your/unlabeled/dataset"
+  det_dataset_path: "/path/to/your/detection/dataset.yaml"
+
+# Model Parameters
+# --------------------------------------
+# Note: When using this YAML, ensure the number of classes (nc) in
+# /ultralytics/models/v8/yolov8.yaml matches your dataset's class count
+model:
+  yaml: "yolov8l.yaml"
+  img_size: 224
+  backbone_layers: 11 # Number of backbone layers to train
+
+# Self-Supervised Learning Parameters
+# --------------------------------------
+ssl:
+  batch_size: 120
+  num_epochs: 200 
+  num_workers: 8
+  learning_rate: 0.0005 
+  scheduler_step_size: 15
+  scheduler_gamma: 0.7
+  contrastive_temp: 0.1 
+  patience: 20
+
+# Supervised Detection Parameters
+# --------------------------------------
+detection:
+  batch_size: 64
+  num_epochs: 300
+  device: 0

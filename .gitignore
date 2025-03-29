@@ -8,7 +8,7 @@ train*/
 *.pt
 *.parquet
 screenlog*
-
+config-local.yaml
 #Large files 
 data/cifar-10-python.tar.gz
 

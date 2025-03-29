@@ -4,12 +4,14 @@ import torch.nn.functional as F
 from ultralytics import YOLO
 from PIL import Image
 import os
+import yaml
 from torch.utils.data import DataLoader, Dataset
 import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
 
 import torchvision
 torchvision.disable_beta_transforms_warning()
@@ -17,50 +19,64 @@ from torchvision.transforms import v2
 
 from pytorch_metric_learning.losses import NTXentLoss
 
+# Load environment variables from .env file
+load_dotenv()
+
+# ====================================
+# CONFIGURATION LOADING
+# ====================================
+def load_config():
+    """Load configuration from YAML file based on environment"""
+    app_env = os.environ.get('APP_ENV', '')
+    
+    # Default to config.yaml
+    config_path = Path(__file__).parent / 'config.yaml'
+    
+    # Only use local config if explicitly set
+    if app_env == 'local':
+        local_config_path = Path(__file__).parent / 'config-local.yaml'
+        if local_config_path.exists():
+            config_path = local_config_path
+            print(f"Using local configuration from {config_path}")
+        else:
+            print(f"Local configuration not found at {local_config_path}, using default")
+    
+    print(f"Loading configuration from {config_path}")
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    return config
+
+# Load configuration
+config = load_config()
+
 # ====================================
 # GLOBAL CONFIGURATION
 # ====================================
 
-# --------------------------------------
-# DATASET PATHS
-# --------------------------------------
-# Self-supervised dataset: contains non-annotated images for contrastive learning
-#SSL_TRAIN_DIR = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-common-aug/images/train"
-SSL_TRAIN_DIR = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/Steel-unlabeled/all_images2"
+# Dataset paths
+SSL_TRAIN_DIR = config['datasets']['ssl_train_dir']
+DET_DATASET_PATH = config['datasets']['det_dataset_path']
 
-# Object detection dataset: contains annotated images in YOLOv5 format
-#DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-fs-aug/neu_det.yaml"
-DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel/neu_det.yaml"
+# Model parameters
+MODEL_YAML = config['model']['yaml']
+IMG_SIZE = config['model']['img_size']
+BACKBONE_LAYERS = config['model']['backbone_layers']
 
-# --------------------------------------
-# SHARED MODEL PARAMETERS
-# --------------------------------------
-# Note: When using this YAML, ensure the number of classes (nc) in
-# /ultralytics/models/v8/yolov8.yaml matches your dataset's class count
-MODEL_YAML = "yolov8l.yaml"  
-IMG_SIZE = 320 #416            # Image size for both training phases
-BACKBONE_LAYERS = 11      # Number of backbone layers to train
+# Self-supervised learning parameters
+SSL_BATCH_SIZE = config['ssl']['batch_size']
+SSL_NUM_EPOCHS = config['ssl']['num_epochs']
+SSL_NUM_WORKERS = config['ssl']['num_workers']
+SSL_LEARNING_RATE = config['ssl']['learning_rate']
+SSL_SCHEDULER_STEP_SIZE = config['ssl']['scheduler_step_size']
+SSL_SCHEDULER_GAMMA = config['ssl']['scheduler_gamma']
+SSL_CONTRASTIVE_TEMP = config['ssl']['contrastive_temp']
+SSL_PATIENCE = config['ssl']['patience']
 
-# --------------------------------------
-# SELF-SUPERVISED LEARNING PARAMETERS
-# --------------------------------------
-SSL_BATCH_SIZE = 64 #120 #37 -  Lower batch size to accommodate smaller dataset
-SSL_NUM_EPOCHS = 300 #200 -  Increase epochs to compensate for limited data and ensure convergence. Monitor closely for overfitting.
-SSL_NUM_WORKERS = 8 #20 - Reduce, the bottleneck with small dataset isn't the dataloader but limited data
-SSL_LEARNING_RATE = 0.0005 #0.001 -  Slightly reduce to prevent overshooting with limited data.
-SSL_SCHEDULER_STEP_SIZE = 15 #30   #20 - Adjust based on the increased epochs. Step size should be larger so that learning happen and avoid local optimum.
-SSL_SCHEDULER_GAMMA = 0.7 #0.2 # 0.7 #0.5 - Reduce learning rate more agressively
-SSL_CONTRASTIVE_TEMP = 0.1 #0.25   # Lower temperature for more discriminative features
-SSL_PATIENCE = 20 #20 -  Increase patience to allow the model more time to improve.
-BACKBONE_LAYERS = 11      # Number of backbone layers to train
-
-
-# --------------------------------------
-# SUPERVISED DETECTION PARAMETERS
-# --------------------------------------
-DET_BATCH_SIZE = 32
-DET_NUM_EPOCHS = 300
-DET_DEVICE = 0            # GPU ID to use
+# Supervised detection parameters
+DET_BATCH_SIZE = config['detection']['batch_size']
+DET_NUM_EPOCHS = config['detection']['num_epochs']
+DET_DEVICE = config['detection']['device']
 
 # --------------------------------------
 # OUTPUT PATHS CONFIGURATION
@@ -397,14 +413,7 @@ def main():
     model = model.to(DEVICE)
     
     loss_func = NTXentLoss(temperature=SSL_CONTRASTIVE_TEMP)
-    #optimizer = torch.optim.Adam(model.parameters(), lr=SSL_LEARNING_RATE)
-        #optimizer = torch.optim.Adam(model.parameters(), lr=SSL_LEARNING_RATE)
     optimizer = torch.optim.AdamW(model.parameters(), lr=SSL_LEARNING_RATE)
-    # Other options to try:
-    # - SGD: torch.optim.SGD(model.parameters(), lr=SSL_LEARNING_RATE, momentum=0.9, weight_decay=0.0005)
-    # - AdamW: torch.optim.AdamW(model.parameters(), lr=SSL_LEARNING_RATE, weight_decay=0.01)
-    # - Adadelta: torch.optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
-    # - Adagrad: torch.optim.Adagrad(model.parameters(), lr=0.01, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10)
 
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, 
