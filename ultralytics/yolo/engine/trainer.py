@@ -219,12 +219,12 @@ class BaseTrainer:
             self.model.load_state_dict(states_dict, strict=True)
             #LOGGER.info(self.model.state_dict())
             
-            freeze = list(self.model.named_parameters())[:151]
-            #LOGGER.info(freeze)
+            # freeze = list(self.model.named_parameters())[:151]
+            # #LOGGER.info(freeze)
 
-            for name, param in freeze:
-                param.requires_grad = False
-                LOGGER.info(param)
+            # for name, param in freeze:
+            #     param.requires_grad = False
+            #     LOGGER.info(param)
 
         
         

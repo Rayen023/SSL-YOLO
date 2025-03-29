@@ -77,18 +77,6 @@ DET_BATCH_SIZE = 64
 DET_NUM_EPOCHS = 300
 ```
 
-#### Backbone Layer Configuration
-
-For different YOLOv8 model variants, set the `BACKBONE_LAYERS` variable according to this mapping:
-
-| Model | Backbone Layers |
-|-------|----------------|
-| YOLOv8n | 6 |
-| YOLOv8s | 7 |
-| YOLOv8m | 9 |
-| YOLOv8l | 11 |
-| YOLOv8x | 13 |
-
 ### 4. Update Model Configuration
 
 Ensure the number of classes in the YOLOv8 configuration file matches your dataset:

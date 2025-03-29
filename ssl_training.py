@@ -25,10 +25,12 @@ from pytorch_metric_learning.losses import NTXentLoss
 # DATASET PATHS
 # --------------------------------------
 # Self-supervised dataset: contains non-annotated images for contrastive learning
-SSL_TRAIN_DIR = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-common-aug/images/train"
+#SSL_TRAIN_DIR = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-common-aug/images/train"
+SSL_TRAIN_DIR = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/Steel-unlabeled/all_images2"
 
 # Object detection dataset: contains annotated images in YOLOv5 format
-DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-fs-aug/neu_det.yaml"
+#DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel-fs-aug/neu_det.yaml"
+DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datasets/steel/neu_det.yaml"
 
 # --------------------------------------
 # SHARED MODEL PARAMETERS
@@ -36,24 +38,27 @@ DET_DATASET_PATH = "/home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Datase
 # Note: When using this YAML, ensure the number of classes (nc) in
 # /ultralytics/models/v8/yolov8.yaml matches your dataset's class count
 MODEL_YAML = "yolov8l.yaml"  
-IMG_SIZE = 224            # Image size for both training phases
+IMG_SIZE = 320 #416            # Image size for both training phases
 BACKBONE_LAYERS = 11      # Number of backbone layers to train
 
 # --------------------------------------
 # SELF-SUPERVISED LEARNING PARAMETERS
 # --------------------------------------
-SSL_BATCH_SIZE = 120
-SSL_NUM_EPOCHS = 1000
-SSL_NUM_WORKERS = 20
-SSL_LEARNING_RATE = 0.001
-SSL_SCHEDULER_STEP_SIZE = 20
-SSL_SCHEDULER_GAMMA = 0.5
-SSL_CONTRASTIVE_TEMP = 0.25   # Temperature parameter for contrastive loss
+SSL_BATCH_SIZE = 64 #120 #37 -  Lower batch size to accommodate smaller dataset
+SSL_NUM_EPOCHS = 300 #200 -  Increase epochs to compensate for limited data and ensure convergence. Monitor closely for overfitting.
+SSL_NUM_WORKERS = 8 #20 - Reduce, the bottleneck with small dataset isn't the dataloader but limited data
+SSL_LEARNING_RATE = 0.0005 #0.001 -  Slightly reduce to prevent overshooting with limited data.
+SSL_SCHEDULER_STEP_SIZE = 15 #30   #20 - Adjust based on the increased epochs. Step size should be larger so that learning happen and avoid local optimum.
+SSL_SCHEDULER_GAMMA = 0.7 #0.2 # 0.7 #0.5 - Reduce learning rate more agressively
+SSL_CONTRASTIVE_TEMP = 0.1 #0.25   # Lower temperature for more discriminative features
+SSL_PATIENCE = 20 #20 -  Increase patience to allow the model more time to improve.
+BACKBONE_LAYERS = 11      # Number of backbone layers to train
+
 
 # --------------------------------------
 # SUPERVISED DETECTION PARAMETERS
 # --------------------------------------
-DET_BATCH_SIZE = 64
+DET_BATCH_SIZE = 32
 DET_NUM_EPOCHS = 300
 DET_DEVICE = 0            # GPU ID to use
 
@@ -74,7 +79,7 @@ detector_dirname = f"{model_type}_{det_dataset_name}_img{IMG_SIZE}_layers{BACKBO
 
 # Create timestamped results directory
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-results_base_dir = f"results_{timestamp}"
+results_base_dir = f"train/results_{timestamp}"
 os.makedirs(results_base_dir, exist_ok=True)
 
 # Final paths
@@ -186,12 +191,39 @@ class SimYOLOv8(nn.Module):
         self.backbone = backbone
         self.augmentation = augmentation
         
-        # Projection head
+        # Dynamically determine input features based on model type
+        model_type = MODEL_YAML.split('.')[0]
+        if 'yolov8x' in model_type:
+            in_features = 640
+        elif 'yolov8l' in model_type:
+            in_features = 512
+        elif 'yolov8m' in model_type:
+            in_features = 576
+        elif 'yolov8s' in model_type:
+            in_features = 512
+        elif 'yolov8n' in model_type:
+            in_features = 256
+        else:
+            # Default case or fallback
+            in_features = 512
+            print(f"Warning: Unknown model type '{model_type}'. Using default in_features={in_features}")
+        
+        # Improved projection head for better contrastive learning
+        # - Uses 2-layer MLP with non-linearity in between (SimCLR approach)
+        # - BatchNorm for better training stability
+        # - Hidden dimension is 2x output dimension as per best practices
+        # - GELU activation for better performance than ReLU in many cases
+        out_features = 256  # projection dimension
+        hidden_dim = out_features * 2
+        
         self.mlp = nn.Sequential(
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),  # This will make the output (batch_size, 512, 1, 1)
-            nn.Flatten(),  # This will make the output (batch_size, 512)
-            nn.Linear(512, 256),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(in_features, hidden_dim, bias=False),
+            nn.BatchNorm1d(hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, out_features, bias=True),
+            nn.BatchNorm1d(out_features, affine=False)  # Normalize embeddings for cosine similarity
         )
 
     def forward(self, x, train=True):
@@ -232,11 +264,18 @@ def train_contrastive(model, train_dataloader, train_data, optimizer, scheduler,
     """Train the model using contrastive learning"""
     print(f"Starting contrastive learning training for {SSL_NUM_EPOCHS} epochs")
     
+    # Setup for early stopping and model checkpointing
+    best_loss = float('inf')
+    patience_counter = 0
+    
     for epoch in range(SSL_NUM_EPOCHS):
         model.train()
         total_loss = 0
         
-        for _, data in enumerate(train_dataloader):
+        # Add tqdm progress bar
+        progress_bar = tqdm.tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{SSL_NUM_EPOCHS}")
+        
+        for _, data in enumerate(progress_bar):
             data = data.to(DEVICE)
             optimizer.zero_grad()
             
@@ -252,12 +291,42 @@ def train_contrastive(model, train_dataloader, train_data, optimizer, scheduler,
             
             loss = loss_func(embeddings, labels)
             loss.backward()
-            total_loss += loss.item() * data.size(0)  
+            total_loss += loss.item() * data.size(0)
             optimizer.step()
+            
+            # Update progress bar with current loss
+            progress_bar.set_postfix({"batch_loss": loss.item()})
 
-        epoch_loss = total_loss / len(train_data) 
+        epoch_loss = total_loss / len(train_data)
         print(f'Epoch {epoch+1:03d}/{SSL_NUM_EPOCHS}, Loss: {epoch_loss:.4f}')
         scheduler.step()
+        
+        # Check if this is the best model so far
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+            patience_counter = 0
+            # Save the best model
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': best_loss,
+            }, PRETRAINED_BACKBONE_PATH)
+            print(f"New best model saved with loss: {best_loss:.4f}")
+        else:
+            patience_counter += 1
+            print(f"No improvement for {patience_counter} epochs. Best loss: {best_loss:.4f}")
+            
+        # Check for early stopping
+        if patience_counter >= SSL_PATIENCE:
+            print(f"Early stopping triggered after {epoch+1} epochs due to no improvement for {SSL_PATIENCE} epochs.")
+            break
+    
+    # Load the best model before returning
+    if os.path.exists(PRETRAINED_BACKBONE_PATH):
+        checkpoint = torch.load(PRETRAINED_BACKBONE_PATH)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"Loaded best model from epoch {checkpoint['epoch']+1} with loss {checkpoint['loss']:.4f}")
     
     print("Contrastive learning training complete!")
 
@@ -292,7 +361,7 @@ def train_detector():
         imgsz=IMG_SIZE, 
         device=DET_DEVICE, 
         pretrained=PRETRAINED_BACKBONE_PATH,
-        project=DET_SAVE_DIRECTORY  # Project name for logging
+        project=DET_SAVE_DIRECTORY  
     )
     metrics = model.val()  
     print(f"Validation metrics: {metrics}")
@@ -328,7 +397,15 @@ def main():
     model = model.to(DEVICE)
     
     loss_func = NTXentLoss(temperature=SSL_CONTRASTIVE_TEMP)
-    optimizer = torch.optim.Adam(model.parameters(), lr=SSL_LEARNING_RATE)
+    #optimizer = torch.optim.Adam(model.parameters(), lr=SSL_LEARNING_RATE)
+        #optimizer = torch.optim.Adam(model.parameters(), lr=SSL_LEARNING_RATE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=SSL_LEARNING_RATE)
+    # Other options to try:
+    # - SGD: torch.optim.SGD(model.parameters(), lr=SSL_LEARNING_RATE, momentum=0.9, weight_decay=0.0005)
+    # - AdamW: torch.optim.AdamW(model.parameters(), lr=SSL_LEARNING_RATE, weight_decay=0.01)
+    # - Adadelta: torch.optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
+    # - Adagrad: torch.optim.Adagrad(model.parameters(), lr=0.01, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10)
+
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, 
         step_size=SSL_SCHEDULER_STEP_SIZE, 
