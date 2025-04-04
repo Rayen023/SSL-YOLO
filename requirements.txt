@@ -1,4 +1,5 @@
 albumentations
+python-dotenv
 certifi
 charset_normalizer
 click

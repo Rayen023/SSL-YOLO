@@ -1,13 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from ultralytics import YOLO
 from PIL import Image
 import os
 import yaml
 from torch.utils.data import DataLoader, Dataset
-import matplotlib.pyplot as plt
-import numpy as np
 import tqdm
 from pathlib import Path
 from datetime import datetime
@@ -106,9 +103,15 @@ DET_SAVE_DIRECTORY = os.path.join(results_base_dir, detector_dirname)
 os.makedirs(os.path.dirname(PRETRAINED_BACKBONE_PATH), exist_ok=True)
 os.makedirs(DET_SAVE_DIRECTORY, exist_ok=True)
 
-print(f"Pretrained backbone will be saved to: {PRETRAINED_BACKBONE_PATH}")
-print(f"Detector will be saved to: {DET_SAVE_DIRECTORY}")
-# Device configuration
+# Print paths
+print(f"Output paths: backbone={PRETRAINED_BACKBONE_PATH}, detector={DET_SAVE_DIRECTORY}, results={results_base_dir}")
+
+# Print configuration sections
+for section, params in config.items():
+    if isinstance(params, dict):
+        param_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+        print(f"{section}: {param_str}")# Device configuration
+        
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # ====================================
@@ -391,16 +394,7 @@ def train_detector():
 
 def main():
     """Main execution function"""
-    # Print configuration for both training phases
-    print("=== Self-Supervised Learning Configuration ===")
-    print(f"Batch size: {SSL_BATCH_SIZE}, Epochs: {SSL_NUM_EPOCHS}, Image size: {IMG_SIZE}")
-    print(f"Learning rate: {SSL_LEARNING_RATE}, Scheduler step: {SSL_SCHEDULER_STEP_SIZE}, Gamma: {SSL_SCHEDULER_GAMMA}")
-    print(f"Contrastive temperature: {SSL_CONTRASTIVE_TEMP}")
-    
-    print("\n=== Object Detection Configuration ===")
-    print(f"Batch size: {DET_BATCH_SIZE}, Epochs: {DET_NUM_EPOCHS}, Image size: {IMG_SIZE}")
-    print(f"Dataset path: {DET_DATASET_PATH}")
-    
+   
     # Step 1: Prepare data and model for contrastive learning
     print("\n===== STEP 1: PREPARING DATA AND MODEL =====")
     data_transform, augmentation = create_data_transforms()
