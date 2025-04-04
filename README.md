@@ -7,7 +7,9 @@ A semi-supervised approach for few-shot object detection using contrastive learn
 ## Description
 
 SSL-YOLO is a project that employs a self-supervised approach to pretrain the backbone of YOLOv8 models for few-shot object detection. The framework uses contrastive representation learning to learn meaningful feature representations from unlabeled data before fine-tuning on a small labeled dataset.
-Tested on the NEU-DET dataset, improves in mAP@50 (from 0.726 to 0.755) by pretraining the backbone with domain-specific unlabeled images.
+
+- On NEU-DET dataset, mAP@50 improved by 4.0% (from 0.726 to 0.755) by pretraining the backbone with domain-specific unlabeled images.
+- Applied in a Few-Shot Object Detection (FSOD) context using the FS-ND dataset, it achieves a significant improvement in mAP@50 from a baseline of 0.127 to 0.571 (a 349% increase).
 
 The two-phase training process consists of:
 
