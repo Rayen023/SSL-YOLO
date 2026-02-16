@@ -2,7 +2,7 @@
 
 A semi-supervised approach for few-shot object detection using contrastive learning with YOLOv8.
 
-![Pipeline Visualization](images/pipeline.png)
+![Pipeline Visualization](pipeline.png)
 
 ## Description
 
