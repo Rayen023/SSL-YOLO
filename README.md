@@ -111,20 +111,19 @@ This script will:
 4. **Training Duration**: Longer pretraining generally leads to better representations
 5. **Learning Rate Scheduling**: Adjust for optimal convergence
 
-<!--
 ## Citation
 
-If you use this code for your research, please cite:
-
 ```
-@misc{ssl-yolo,
-  author = {Your Name},
-  title = {SSL-YOLO: Semi-Supervised Learning for Few-Shot Object Detection with YOLOv8},
-  year = {2023},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/yourusername/ssl-yolo}}
-}
+@INPROCEEDINGS{11394884,
+  author={Ghali, Rayen and Benhafid, Zhor and Selouani, Sid Ahmed},
+  booktitle={2025 IEEE Smart World Congress (SWC)}, 
+  title={Benchmarking Few-Shot Learning Techniques for Steel Surface Defect Detection}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={9-14},
+  keywords={Representation learning;Technological innovation;Supervised learning;Detectors;Contrastive learning;Quality control;Steel;Few shot learning;Standards;Defect detection;Few-Shot Defect Detection;Contrastive learning;NEU-DET},
+  doi={10.1109/SWC65939.2025.00031}}
 ```
 
 ## License
