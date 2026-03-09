@@ -6,17 +6,10 @@ A semi-supervised approach for few-shot object detection using contrastive learn
 
 ## Description
 
-SSL-YOLO is a project that employs a self-supervised approach to pretrain the backbone of YOLOv8 models for few-shot object detection. The framework uses contrastive representation learning to learn meaningful feature representations from unlabeled data before fine-tuning on a small labeled dataset.
+SSL-YOLO employs a self-supervised approach to pretrain the backbone of YOLOv8 models for few-shot object detection using contrastive representation learning from unlabeled data before supervised fine-tuning on a small labeled dataset.
 
 - On NEU-DET dataset, mAP@50 improved by 4.0% (from 0.726 to 0.755) by pretraining the backbone with domain-specific unlabeled images.
 - Applied in a Few-Shot Object Detection (FSOD) context using the FS-ND dataset, it achieves a significant improvement in mAP@50 from a baseline of 0.127 to 0.571 (a 349% increase).
-
-The two-phase training process consists of:
-
-1. **Self-Supervised Contrastive Learning Phase**: Pretrains the backbone using unlabeled images to learn general visual representations.
-2. **Supervised Object Detection Phase**: Fine-tunes the model for object detection using a small labeled dataset.
-
-This approach improves performance in scenarios where labeled data is scarce, but unlabeled data is abundant.
 
 ## Features
 
@@ -29,11 +22,19 @@ This approach improves performance in scenarios where labeled data is scarce, bu
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/Rayen023/ssl-yolo.git
 cd ssl-yolo
+```
 
-# Install dependencies
+### Using uv (Recommended)
+
+```bash
+uv sync
+```
+
+### Using pip
+
+```bash
 pip install -r requirements.txt
 ```
 
@@ -46,36 +47,7 @@ pip install -r requirements.txt
 
 ### 2. Configuration Settings
 
-All parameters are managed through the `config.yaml` file:
-
-```yaml
-# === Dataset Parameters ===
-ssl_train_dir: "/path/to/your/unlabeled/dataset/"
-det_dataset_path: "/path/to/your/detection/dataset.yaml"
-
-# === Shared Parameters ===
-model_yaml: "yolov8l.yaml"  # Change based on model size (n, s, m, l, x)
-img_size: 224
-backbone_layers: 11  # Adjust based on model variant
-
-# === Semi-Supervised Learning Parameters ===
-ssl_batch_size: 180  # Larger batch size recommended for contrastive learning
-ssl_num_epochs: 1000
-ssl_learning_rate: 0.001
-
-# === Object Detection Parameters ===
-det_batch_size: 64
-det_num_epochs: 300
-```
-
-### 3. Update Model Configuration
-
-Ensure the number of classes in the YOLOv8 configuration file matches your dataset:
-
-```bash
-# Modify the number of classes (nc) parameter in:
-# /ultralytics/models/v8/yolov8.yaml
-```
+All parameters are configured in `config.yaml`. Note the required number of classes (nc) must match in your YOLOv8 config.
 
 ## Usage
 
@@ -84,6 +56,7 @@ python ssl_training.py
 ```
 
 This script will:
+
 - Train the backbone using contrastive learning on unlabeled data
 - Save the pretrained backbone weights
 - Fine-tune the model on your few-shot dataset with the backbone frozen
@@ -116,21 +89,15 @@ This script will:
 ```
 @INPROCEEDINGS{11394884,
   author={Ghali, Rayen and Benhafid, Zhor and Selouani, Sid Ahmed},
-  booktitle={2025 IEEE Smart World Congress (SWC)}, 
-  title={Benchmarking Few-Shot Learning Techniques for Steel Surface Defect Detection}, 
+  booktitle={2025 IEEE Smart World Congress (SWC)},
+  title={Benchmarking Few-Shot Learning Techniques for Steel Surface Defect Detection},
   year={2025},
-  volume={},
-  number={},
   pages={9-14},
-  keywords={Representation learning;Technological innovation;Supervised learning;Detectors;Contrastive learning;Quality control;Steel;Few shot learning;Standards;Defect detection;Few-Shot Defect Detection;Contrastive learning;NEU-DET},
-  doi={10.1109/SWC65939.2025.00031}}
+  doi={10.1109/SWC65939.2025.00031}
+}
 ```
 
-## License
-
-[MIT License](LICENSE)
--->
 ## Acknowledgements
 
-- This project is based on the [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) implementation
-- The contrastive learning approach is inspired by [SimCLR](https://arxiv.org/abs/2002.05709)
+- Based on the [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) implementation
+- Contrastive learning approach based on [SimCLR](https://arxiv.org/abs/2002.05709)
