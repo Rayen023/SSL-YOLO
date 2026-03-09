@@ -4,12 +4,7 @@ A semi-supervised approach for few-shot object detection using contrastive learn
 
 ![Pipeline Visualization](pipeline.png)
 
-## Description
-
 SSL-YOLO employs a self-supervised approach to pretrain the backbone of YOLOv8 models for few-shot object detection using contrastive representation learning from unlabeled data before supervised fine-tuning on a small labeled dataset.
-
-- On NEU-DET dataset, mAP@50 improved by 4.0% (from 0.726 to 0.755) by pretraining the backbone with domain-specific unlabeled images.
-- Applied in a Few-Shot Object Detection (FSOD) context using the FS-ND dataset, it achieves a significant improvement in mAP@50 from a baseline of 0.127 to 0.571 (a 349% increase).
 
 ## Features
 
@@ -83,6 +78,18 @@ This script will:
 3. **Batch Size**: Use the largest batch size your GPU memory allows
 4. **Training Duration**: Longer pretraining generally leads to better representations
 5. **Learning Rate Scheduling**: Adjust for optimal convergence
+
+## Benchmark Results
+
+We evaluated our methodology on the **NEU-DET** dataset in a **10-shot** setting, systematically comparing against various Few-Shot Learning (FSL) representation paradigms. The performance, measured by **Mean Average Precision (mAP@50)**, is summarized below:
+
+| Strategy    | Validation Paradigm                                                | mAP@50 |
+| :---------- | :----------------------------------------------------------------- | :----- |
+| **ISS-NFT** | In-Domain Self-Supervised pre-training & Novel-class Fine-Tuning\* | 57.1%  |
+| **ISS-FFT** | In-Domain Self-Supervised pre-training & Full Fine-Tuning          | 72.9%  |
+| **CDT**     | Cross-Domain Transfer (pre-trained on COCO)                        | 32.8%  |
+
+> **\*** _Evaluated on the [FS-ND dataset split](https://github.com/Whileherham/IFDD), SSL-YOLO improved the **mAP@50** from a baseline of **0.127 to 0.571**. [Paper link](https://ieeexplore.ieee.org/document/11394884)._
 
 ## Citation
 
